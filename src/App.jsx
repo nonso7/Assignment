@@ -2,11 +2,14 @@ import { useState } from "react";
 import { ethers } from "ethers";
 import abi from "./abi.json";
 import "./App.css";
+import { ToastContainer, toast } from "react-toastify";
 
 function App() {
-  const [userInput, setUserInput] = useState(""); // User input for deposit amount
+  const [depositAmount, setDepositAmount] = useState(""); // Separate state for deposit
+  const [withdrawAmount, setWithdrawAmount] = useState(""); // Separate state for withdrawal
   const [retrievedBalance, setRetrievedBalance] = useState(""); // Retrieved balance from the contract
-  const [statusMessage, setStatusMessage] = useState(""); // Status message to show deposit or error messages
+  const [statusMessage, setStatusMessage] = useState(""); // Status message for user feedback
+  //const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS ;
   const contractAddress = "0xB473EAcebc96437D20E39c5C42441D0818F985B7";
 
   // Request accounts from Metamask
@@ -15,7 +18,7 @@ function App() {
       await window.ethereum.request({ method: "eth_requestAccounts" });
     } catch (error) {
       setStatusMessage("Please connect to Metamask.");
-      console.error("Error connecting to Metamask:", error);
+      toast.error("Error connecting to Metamask:", error);
     }
   }
 
@@ -29,25 +32,59 @@ function App() {
       const myContract = new ethers.Contract(contractAddress, abi, signer);
 
       try {
-        // Ensure input is a valid number
-        if (!userInput || isNaN(userInput) || Number(userInput) <= 0) {
+        // Ensure deposit input is a valid number
+        if (!depositAmount || isNaN(depositAmount) || Number(depositAmount) <= 0) {
           setStatusMessage("Please enter a valid deposit amount.");
           return;
         }
 
-        const tx = await myContract.deposit(ethers.parseUnits(userInput, "ether"));
+        const tx = await myContract.deposit(
+          ethers.parseUnits(depositAmount, "ether")
+        );
         await tx.wait();
-        setStatusMessage(`Deposited ${userInput} ETH successfully.`);
+        setStatusMessage(`Deposited ${depositAmount} ETH successfully.`);
+        setDepositAmount(""); // Clear the input field after successful deposit
       } catch (err) {
         setStatusMessage("Deposit failed. See console for details.");
-        alert("Deposit error:", err);
+        toast.error("Deposit error:", err);
       }
     } else {
       setStatusMessage("Metamask is not installed.");
     }
   }
 
-  // Get user balance from the smart contract
+  // Withdraw function
+  async function Withdraw() {
+    if (typeof window.ethereum !== "undefined") {
+      await requestAccounts();
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const myContract = new ethers.Contract(contractAddress, abi, signer);
+
+      try {
+        // Ensure withdraw input is a valid number
+        if (!withdrawAmount || isNaN(withdrawAmount) || Number(withdrawAmount) <= 0) {
+          setStatusMessage("Please enter a valid withdrawal amount.");
+          return;
+        }
+
+        const tx = await myContract.withdraw(
+          ethers.parseUnits(withdrawAmount, "ether")
+        );
+        await tx.wait();
+        setStatusMessage(`Withdrawn ${withdrawAmount} ETH successfully.`);
+        setWithdrawAmount(""); // Clear the input field after successful withdrawal
+      } catch (err) {
+        setStatusMessage("Withdrawal failed. See console for details.");
+        toast.error("Withdrawal error:", err);
+      }
+    } else {
+      setStatusMessage("Metamask is not installed.");
+    }
+  }
+
+  // Get user balance
   async function userBalance() {
     if (typeof window.ethereum !== "undefined") {
       await requestAccounts();
@@ -61,7 +98,7 @@ function App() {
         setStatusMessage("Balance retrieved successfully.");
       } catch (err) {
         setStatusMessage("Failed to retrieve balance. See console for details.");
-        alert("Balance retrieval error:", err);
+        console.error("Balance retrieval error:", err);
       }
     } else {
       setStatusMessage("Metamask is not installed.");
@@ -71,6 +108,9 @@ function App() {
   return (
     <div className="App">
       <h1>Ethereum Smart Contract Interaction</h1>
+      <ToastContainer position="top-right" autoClose={300} hideProgressBar />
+
+      <p>Connected Wallet: {contractAddress}</p>
 
       {/* Deposit Section */}
       <div className="deposit-section">
@@ -78,10 +118,22 @@ function App() {
         <input
           type="text"
           placeholder="Enter deposit amount in ETH"
-          value={userInput}
-          onChange={(e) => setUserInput(e.target.value)}
+          value={depositAmount}
+          onChange={(e) => setDepositAmount(e.target.value)}
         />
         <button onClick={Deposited}>Deposit</button>
+      </div>
+
+      {/* Withdraw Section */}
+      <div className="withdraw-section">
+        <h2>Withdraw ETH</h2>
+        <input
+          type="text"
+          placeholder="Enter withdrawal amount in ETH"
+          value={withdrawAmount}
+          onChange={(e) => setWithdrawAmount(e.target.value)}
+        />
+        <button onClick={Withdraw}>Withdraw</button>
       </div>
 
       {/* Balance Section */}
@@ -98,3 +150,7 @@ function App() {
 }
 
 export default App;
+
+
+//reading use provider
+//writing use signer
